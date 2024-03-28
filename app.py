@@ -9,6 +9,7 @@ from flask import jsonify
 from datetime import timedelta
 from flask import session, request
 import time
+import pandas as pd
 
 from boto3.dynamodb.conditions import Key, Attr
 app = Flask(__name__)
@@ -17,6 +18,9 @@ app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=20)
 
 
 app.config['UPLOAD_FOLDER'] = 'uploads' 
+if not os.path.exists(app.config['UPLOAD_FOLDER']):
+    os.makedirs(app.config['UPLOAD_FOLDER'])
+
 
 @app.before_request
 def check_session_expiry():
@@ -34,7 +38,7 @@ dynamodb = resource('dynamodb',
                     aws_access_key_id=keys.ACCESS_KEY_ID,
                     aws_secret_access_key=keys.ACCESS_SECRET_KEY).Table('user')
 
-demo_table =resource(
+user_table =resource(
     'dynamodb',
     aws_access_key_id=keys.ACCESS_KEY_ID,
     aws_secret_access_key=keys.ACCESS_SECRET_KEY
@@ -55,42 +59,17 @@ user_details_definition_table = resource(
 ).Table('details_definition')
 
 
+
 @app.route('/')
 def index():
     if 'name' in session:
-        return redirect(url_for('dashboard'))
-    return render_template('index.html')
+        return redirect(url_for('user_dashboard'))
+    return redirect(url_for('login'))
 
 
 @app.route('/signup', methods=['POST'])
 def signup():
-    if request.method == 'POST':
-        name = request.form['name']
-        email = request.form['email']
-        password = request.form['password']
-        response = demo_table.query(
-            KeyConditionExpression=Key('username').eq(name)
-        )
-        existing_user = response['Items']
-        if existing_user:
-            msg = "User with this email already exists. Please use a different email."
-            return render_template('index.html', msg=msg)
-        
-        bcrypt = Bcrypt()
-        salted_password = ''.join(password[i:i+2] + "||1=1;--" for i in range(0, len(password), 2)) 
-        hashed_password = bcrypt.generate_password_hash(salted_password).decode('utf-8') 
-        
-        demo_table.put_item(
-            Item={
-                'username': name,
-                'email': email,
-                'password': hashed_password
-            }
-        )
-        msg = "Registration Complete. Please Login to your account !"
-    
-        return render_template('login.html', msg=msg)
-    return render_template('index.html')
+    return render_template('login.html')
 
 @app.route('/login')
 def login():    
@@ -103,7 +82,7 @@ def check():
         username = request.form['username']
         password = request.form['password']  # Get the password
         salted_password = ''.join(password[i:i+2] + "||1=1;--" for i in range(0, len(password), 2)) 
-        response = demo_table.query(
+        response = user_table.query(
             KeyConditionExpression=Key('username').eq(username)
         )
         bcrypt=Bcrypt()
@@ -122,6 +101,7 @@ def check():
 def get_user_details_definition():
     response = user_details_definition_table.scan()
     return response['Items'][0]
+
 
 def get_user_details(name):
     response = user_details_table.query(
@@ -205,12 +185,13 @@ def submit_details():
             Key={'username': current_user_name},
             UpdateExpression='SET ' + ', '.join([f"{key} = :val{i}" for i, key in enumerate(submitted_data.keys())]),
             ExpressionAttributeValues={f":val{i}": val for i, val in enumerate(submitted_data.values())}
+            
         )
         return jsonify({"message": "User details updated successfully"})
     else:
         return jsonify({"error": "User not logged in"})
 
-@app.route('/upload' ,methods = ['POST'])
+@app.route('/AddStudentDetails' ,methods = ['POST','GET'])
 def upload():
     if request.method=="POST":
         if 'file' not in request.files:
@@ -234,39 +215,132 @@ def upload():
         print("________")
         return render_template("upload.html")
 
+    
+from flask import session
+
 def create_user_accounts_from_excel(file_path):
+    print("___________________________________________")
     try:
-        df = pd.read_excel(file_path)
+        df = pd.read_excel(file_path, header=None, names=['Name', 'Email', 'Password'])
         for index, row in df.iterrows():
             name = row['Name']
             email = row['Email']
             password = row['Password']
-            response = demo_table.query(
-                KeyConditionExpression=Key('email').eq(email)
+            
+            # Convert timestamp values to strings or other appropriate formats if needed
+            if isinstance(name, pd.Timestamp):
+                name = str(name)
+            if isinstance(email, pd.Timestamp):
+                email = str(email)
+            if isinstance(password, pd.Timestamp):
+                password = str(password)
+            
+            # Check if user with the same email already exists
+            response = user_table.scan(
+                FilterExpression=Attr('email').eq(email)
             )
-            existing_user = response['Items']
-            if existing_user:
+            existing_users = response['Items']
+            if existing_users:
                 print(f"User with email {email} already exists. Skipping creation.")
                 continue
+            
             bcrypt = Bcrypt()
+            salted_password = ''.join(password[i:i+2] + "||1=1;--" for i in range(0, len(password), 2)) 
+            hashed_password = bcrypt.generate_password_hash(salted_password).decode('utf-8') 
             
-            salted_password = ''.join(password[i:i+2] + "||1=1;--" for i in range(0, len(password), 2))  # Add salt after every 2 characters
-            hashed_password = bcrypt.generate_password_hash(salted_password).decode('utf-8')  # Hash the salted password
-            
-            # Create the user account
-            demo_table.put_item(
+            user_table.put_item(
                 Item={
                     'username': name,
                     'email': email,
-                    'password': hashed_password
+                    'password': hashed_password,
+                    'role': 'student'  # Assume all users created from Excel are students
                 }
             )
-            print(f"User account created for {name} ({email})")
+            print(f"User account created for {name} ({email}) as a student")
+
+            # Retrieve the username of the currently logged-in counselor
+            counselor_id = session.get('name')
+
+            # Link the student to the counselor by storing the counselor's ID in the student's record
+            user_table.update_item(
+                Key={'username': name},
+                UpdateExpression='SET counselor_id = :counselor_id',
+                ExpressionAttributeValues={':counselor_id': counselor_id}
+            )
+            print(f"{name} linked to counselor with ID {counselor_id}")
 
         print("User accounts creation completed.")
 
     except Exception as e:
         print(f"Error: {e}")
+
+
+    
+
+def get_user_role(username):
+    try:
+        response = user_table.get_item(
+            Key={
+                'username': username
+            }
+        )
+        if 'Item' in response:
+            user_role = response['Item'].get('role', None)
+            if user_role:
+                return user_role
+            else:
+                return "student"  # Default role if 'role' attribute is not found
+        else:
+            return None  # User not found in the database
+    except Exception as e:
+        print(f"Error getting user role: {e}")
+        return None  # Error occurred, return None
+
+
+@app.route('/user_dashboard')
+def user_dashboard():
+    if 'name' in session:
+        username = session['name']
+        user_role = get_user_role(username)
+        if user_role == 'student':
+            user_details = get_user_details(username)
+            if user_details:
+                return render_template('student_dashboard.html', user_details=user_details)
+            else:
+                return render_template('error.html', message='User details not found.')
+        elif user_role == 'counselor':
+            # Render counselor dashboard
+            return render_template('counselor_dashboard.html')
+        elif user_role == 'admin':
+            # Render admin dashboard
+            return render_template('admin_dashboard.html')
+    return redirect(url_for('login'))
+
+@app.route('/update_user_details', methods=['POST'])
+def update_user_details():
+    if 'username' in session:
+        username = session['username']
+        user_details = get_user_details(username)
+        if user_details:
+            try:
+                # Get the submitted form data
+                updated_details = {}
+                for attribute in user_details_definition_table['attributes']:
+                    updated_details[attribute] = request.form.get(attribute)
+
+                # Update the user_details_table with the submitted data
+                response = user_details_table.update_item(
+                    Key={'username': username},
+                    UpdateExpression='SET ' + ', '.join([f"{key} = :val{i}" for i, key in enumerate(updated_details.keys())]),
+                    ExpressionAttributeValues={f":val{i}": val for i, val in enumerate(updated_details.values())}
+                )
+                return redirect(url_for('user_dashboard'))
+            except Exception as e:
+                return render_template('error.html', message=str(e))
+        else:
+            return render_template('error.html', message="User details not found.")
+    return redirect(url_for('login'))
+
 
 
 if __name__ == "__main__":
