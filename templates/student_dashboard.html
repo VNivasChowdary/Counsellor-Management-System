@@ -3,44 +3,78 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>User Details</title>
+    <title>Student Dashboard</title>
     <style>
-        label {
-            display: block;
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        h1, h2 {
+            text-align: center;
+            color: #333;
+        }
+        ul {
+            list-style: none;
+            padding: 0;
+        }
+        li {
             margin-bottom: 10px;
+            padding: 10px;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
         }
-        input[type="text"] {
-            width: 100%;
-            padding: 8px;
-            margin-top: 5px;
-            margin-bottom: 20px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            box-sizing: border-box;
+        li strong {
+            font-weight: bold;
+            color: #333;
         }
-        input[type="submit"] {
-            background-color: #4CAF50;
-            color: white;
-            padding: 10px 20px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-        input[type="submit"]:hover {
-            background-color: #45a049;
+        .container {
+            background-color: #f0f0f0;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
         }
     </style>
 </head>
 <body>
-    <h1>User Details</h1>
-    <form action="/update_user_details" method="post">
-        {% for attribute in user_attributes %}
-            {% if attribute != 'username' %}
-                <label for="{{ attribute }}">{{ attribute.capitalize() }}:</label>
-                <input type="text" id="{{ attribute }}" name="{{ attribute }}"><br>
+    <div class="container">
+        <h1 style="color: #333;">Welcome to Student Dashboard</h1>
+        
+        <h2 style="color: #333;">Student Details</h2>
+        <ul>
+            {% for key, value in user_details.items() %}
+            {% if key != "password" %}
+            <li><strong>{{ key }}:</strong> {{ value }}</li>
             {% endif %}
-        {% endfor %}
-        <input type="submit" value="Save Changes">
-    </form>
+            {% endfor %}
+        </ul>
+        {% if missing_attributes %}
+        <h2 style="color: #333;">Missing Details</h2>
+        <ul>
+            
+            <form method="POST" action="/submit_details">
+                <ul>
+                    {% for attribute in missing_attributes %}
+                    <li>
+                        <label for="{{ attribute }}">{{ attribute.capitalize() }}:</label>
+                        <input type="text" id="{{ attribute }}" name="{{ attribute }}">
+                    </li>
+                    {% endfor %}
+                </ul>
+                <button type="submit">Submit</button>
+            </form>
+        </ul>
+        {% endif %}
+    </div>
 </body>
 </html>
