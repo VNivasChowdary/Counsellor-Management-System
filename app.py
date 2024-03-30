@@ -10,7 +10,12 @@ from datetime import timedelta
 from flask import session, request
 import time
 import pandas as pd
-
+from flask_mail import Mail
+from flask import Flask, render_template, request, redirect, url_for, flash
+from flask_bcrypt import Bcrypt
+from flask_mail import Mail, Message
+import secrets
+from datetime import datetime, timedelta
 reset_tokens = {}
 app = Flask(__name__)
 # Configuration for Flask-Mail
@@ -113,7 +118,7 @@ def signup():
 
 @app.route('/login')
 def login():    
-    return render_template('index.html')
+    return render_template('login.html')
 
 
 @app.route('/check',methods = ['POST'])
@@ -488,6 +493,7 @@ def reset_password(token):
         expiry = reset_info['expiry']
         if datetime.now() < expiry:
             if request.method == 'POST':
+
                 new_password = request.form.get('new_password')
                 confirm_password = request.form.get('confirm_password')
                 if new_password == confirm_password:
