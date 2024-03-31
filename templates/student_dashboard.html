@@ -51,6 +51,7 @@
         <h1 style="color: #333;">Welcome to Student Dashboard</h1>
         
         <h2 style="color: #333;">Student Details</h2>
+        {% if user_details.items() %}
         <ul>
             {% for key, value in user_details.items() %}
             {% if key != "password" %}
@@ -58,6 +59,7 @@
             {% endif %}
             {% endfor %}
         </ul>
+        {% endif %}
         {% if missing_attributes %}
         <h2 style="color: #333;">Missing Details</h2>
         <ul>

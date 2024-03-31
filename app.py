@@ -132,11 +132,12 @@ def check():
         )
         bcrypt=Bcrypt()
         items = response['Items']
+        print(password)
         if items:
             stored_password = items[0]['password']
             if bcrypt.check_password_hash(stored_password, salted_password): 
-                if(password=="KLU__"):
-                    return redirect(url_for('reset_Password'))
+                # if(password=="KLU__"):
+                #     return redirect(url_for('reset_Password'))
                 name = items[0]['username']
                 session['name'] = name
                 return redirect(url_for('index'))
@@ -237,6 +238,8 @@ def check_fields_filled():
     else:
         return redirect(url_for('login'))
 
+
+
 @app.route('/submit_details', methods=['POST'])
 def submit_details():
     if 'name' in session:
@@ -251,7 +254,7 @@ def submit_details():
     else:
         return jsonify({"error": "User not logged in"})
 
-@app.route('/AddStudentDetails' ,methods = ['POST','GET'])
+@app.route('/AddUsers' ,methods = ['POST','GET'])
 def upload():
     if request.method=="POST":
         if 'file' not in request.files:
@@ -268,7 +271,8 @@ def upload():
             filename = file.filename
             file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             file.save(file_path)
-            create_user_accounts_from_excel(file_path)
+            currentrole=get_user_role(session['name'])
+            create_user_accounts_from_excel(file_path,currentrole)
             flash('File uploaded and accounts created successfully')
             return redirect(url_for('index'))
     else:
@@ -277,12 +281,16 @@ def upload():
     
 from flask import session
 
+from decimal import Decimal
+
 def create_user_accounts_from_excel(file_path, current_role):
     try:
-        df = pd.read_excel(file_path, header=None, names=['Id','name', 'Email'])
+        df = pd.read_excel(file_path, header=None, names=['Id', 'name', 'Email'])
         for index, row in df.iterrows():
-            id=row['Id']
-            name = row['Name']
+            id = str(row['Id']) # Convert id to string
+            if id != 'nan':
+                id = str(int(row['Id']))
+            name = row['name']
             email = row['Email']
             password = "KLU__"
             
@@ -318,7 +326,7 @@ def create_user_accounts_from_excel(file_path, current_role):
             
             user_table.put_item(
                 Item={
-                    'username': id,
+                    'username': id,  # Ensure username is treated as string
                     'name': name,
                     'email': email,
                     'password': hashed_password,
@@ -330,10 +338,12 @@ def create_user_accounts_from_excel(file_path, current_role):
             # Link the student to the counselor by storing the counselor's ID in the student's record
             if current_role == 'counselor':
                 counselor_id = session.get('name')
+                # Convert counselor_id to string before storing
+                counselor_id_str = str(counselor_id)
                 user_table.update_item(
-                    Key={'username': name},
+                    Key={'username': id},  # Ensure username is treated as string
                     UpdateExpression='SET counsellor_id = :counsellor_id',
-                    ExpressionAttributeValues={':counsellor_id': counselor_id}
+                    ExpressionAttributeValues={':counsellor_id': counselor_id_str}
                 )
                 print(f"{name} linked to counselor with ID {counselor_id}")
 
@@ -341,6 +351,8 @@ def create_user_accounts_from_excel(file_path, current_role):
 
     except Exception as e:
         print(f"Error: {e}")
+
+
 
 def get_user_role(username):
     try:
@@ -354,6 +366,7 @@ def get_user_role(username):
             if user_role:
                 return user_role
             else:
+                print("student")
                 return "student"  # Default role if 'role' attribute is not found
         else:
             return None  # User not found in the database
@@ -370,9 +383,8 @@ def user_dashboard():
         if user_role == 'student':
             user_details = get_user_details(username)
             missing_attributes=check_fields_filled()
-
             if user_details:
-                return render_template('student_dashboard.html', user_details=user_details,missing_attributes=missing_attributes)
+                return render_template('fill_details.html', user_details=user_details,missing_attributes=missing_attributes)
             else:
                 user_details_definition = get_user_details_definition()
                 return render_template('fill_details.html', user_details_definition=user_details_definition)
@@ -406,8 +418,12 @@ def user_dashboard():
             else:
                 return render_template('error.html', message='Counselor details not found.')
         elif user_role == 'admin':
-            # Render admin dashboard
-            return render_template('admin_dashboard.html')
+            response = user_table.scan(
+                FilterExpression=Attr('role').eq('counselor')
+            )
+            counselors = response['Items']
+            
+            return render_template('admin_dashboard.html', counselors=counselors)
     return redirect(url_for('login'))
 
 @app.route('/update_user_details', methods=['POST'])
@@ -454,7 +470,7 @@ def get_user_details(username):
         user_details = response['Items'][0] if 'Items' in response and response['Items'] else None
         return jsonify(user_details)
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return "error"
 
 
 

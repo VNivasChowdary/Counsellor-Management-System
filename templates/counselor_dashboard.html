@@ -9,6 +9,8 @@
     
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <style>
         /* Add your custom CSS styles here */
         /* For example: */
@@ -21,6 +23,7 @@
     <div class="container">
         <h1>Welcome, {{ counselor.username }}</h1>
         <div class="row">
+            <h2>Your students details</h2>
             {% for student in students %}
             <div class="col-md-4">
                 <div class="card" onclick="showUserDetails('{{ student.username }}')">
@@ -52,6 +55,14 @@
                     <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- Add New User Section -->
+    <div class="card">
+        <div class="card-body">
+            
+                <a href="/AddUsers"><button type="submit" class="btn btn-primary">Add User</button></a>
         </div>
     </div>
 

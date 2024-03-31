@@ -5,6 +5,6 @@
         "profile_name": "default",
         "project_name": "counsellor-mana",
         "runtime": "python3.11",
-        "s3_bucket": "zappa-lhsohr3nj"
+        "s3_bucket": "zappa-f2w7ikete"
     }
 }

@@ -3,9 +3,74 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>Admin Dashboard</title>
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <!-- Custom CSS -->
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        .container-fluid {
+            padding: 20px;
+        }
+        .page-header {
+            margin-bottom: 30px;
+        }
+        .card {
+            margin-bottom: 20px;
+        }
+        .card-header {
+            background-color: #007bff;
+            color: #fff;
+        }
+        .btn-primary {
+            background-color: #007bff;
+            border-color: #007bff;
+        }
+        .btn-primary:hover {
+            background-color: #0056b3;
+            border-color: #0056b3;
+        }
+    </style>
 </head>
 <body>
-    Admin Dashboard
+
+<div class="container-fluid">
+    <div class="page-header">
+        <h1>Admin Dashboard</h1>
+    </div>
+
+    <!-- Display Counselors Section -->
+    <div class="card">
+        <div class="card-header">
+            Counselors
+        </div>
+        <div class="card-body">
+            <ul class="list-group">
+                {% for user in counselors %}
+                <li class="list-group-item">{{ user.username }} - {{ user.email }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+
+    <!-- Add New User Section -->
+    <div class="card">
+        <div class="card-body">
+            
+                <a href="/AddUsers"><button type="submit" class="btn btn-primary">Add User</button></a>
+        </div>
+    </div>
+
+    <!-- Other Admin Features Here -->
+
+</div>
+
+<!-- Bootstrap JS -->
+<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
 </body>
 </html>
